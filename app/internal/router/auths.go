@@ -1,7 +1,7 @@
 package router
 
 import (
-	"Faber-AI/app/internal/auths"
+	"app/internal/auths"
 
 	"github.com/gin-gonic/gin"
 )

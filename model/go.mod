@@ -1,3 +1,3 @@
-module Faber-AI/model
+module model
 
 go 1.24

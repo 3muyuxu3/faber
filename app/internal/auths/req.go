@@ -22,7 +22,6 @@ type RefreshTokenReq struct {
 type ForgetPasswordReq struct {
 	Email string `json:"email" binding:"required"`
 }
-
 type VerifyCodeReq struct {
 	Code  string `json:"code" binding:"required"`
 	Email string `json:"email" binding:"required"`

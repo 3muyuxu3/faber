@@ -1,8 +1,8 @@
 package auths
 
 import (
-	"Faber-AI/model"
 	"context"
+	"model"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"

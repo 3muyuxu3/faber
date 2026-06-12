@@ -1,3 +1,3 @@
-module Faber-AI/core
+module core
 
 go 1.24

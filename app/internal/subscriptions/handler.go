@@ -1,7 +1,7 @@
 package subscriptions
 
 import (
-	"Faber-AI/model"
+	"model"
 	"time"
 
 	"github.com/gin-gonic/gin"

@@ -1,0 +1,3 @@
+package tool
+
+var GdApiKey = ""

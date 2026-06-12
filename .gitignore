@@ -3,3 +3,4 @@ config.yml
 elasticsearch.yml
 data
 plugins
+app/etc/config-prod.yml

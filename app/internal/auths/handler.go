@@ -29,7 +29,7 @@ func (h *Handler) Register(c *gin.Context) {
 }
 
 func (h *Handler) VerifyEmail(c *gin.Context) {
-	// 获取参数
+	//获取参数
 	var verifyReq VerifyEmailReq
 	if err := req.QueryParam(c, &verifyReq); err != nil {
 		return
@@ -39,7 +39,7 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 		res.Error(c, err)
 		return
 	}
-	// 这个地方应该跳转到登录页面
+	//这个地方应该跳转到登录页面
 	c.Redirect(302, "http://localhost:5173/login")
 }
 

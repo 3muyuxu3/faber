@@ -1,12 +1,12 @@
 package auths
 
 import (
-	"Faber-AI/common/biz"
-	"Faber-AI/model"
+	"common/biz"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"model"
 	"net/smtp"
 	"time"
 
@@ -28,7 +28,7 @@ type service struct {
 }
 
 func (s *service) register(req RegisterReq) (*RegisterResp, error) {
-	// 先检查用户名邮箱是否已经注册
+	//先检查用户名邮箱是否已经注册
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	u, err := s.repo.findByUsername(ctx, req.Username)
@@ -39,7 +39,7 @@ func (s *service) register(req RegisterReq) (*RegisterResp, error) {
 	if u != nil {
 		return nil, biz.ErrUserNameExisted
 	}
-	// 检查邮箱是否已经注册
+	//检查邮箱是否已经注册
 	u, err = s.repo.findByEmail(ctx, req.Email)
 	if err != nil {
 		logs.Errorf("register findByEmail error: %v", err)
@@ -48,13 +48,13 @@ func (s *service) register(req RegisterReq) (*RegisterResp, error) {
 	if u != nil {
 		return nil, biz.ErrEmailExisted
 	}
-	// 对密码进行加密
+	//对密码进行加密
 	password, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		logs.Errorf("register GenerateFromPassword error: %v", err)
 		return nil, biz.ErrPasswordFormat
 	}
-	// 生成邮件用的token 用于邮件激活
+	//生成邮件用的token 用于邮件激活
 	tokenBytes := make([]byte, 16)
 	if _, err := rand.Read(tokenBytes); err != nil {
 		return nil, errs.DBError
@@ -68,7 +68,7 @@ func (s *service) register(req RegisterReq) (*RegisterResp, error) {
 		logs.Errorf("register Set error: %v", err)
 		return nil, errs.DBError
 	}
-	// 存入数据库
+	//存入数据库
 	user := model.User{
 		Id:            userId,
 		Username:      req.Username,
@@ -81,13 +81,13 @@ func (s *service) register(req RegisterReq) (*RegisterResp, error) {
 		Avatar:        "default",
 	}
 	err = s.repo.transaction(ctx, func(tx *gorm.DB) error {
-		// 创建用户
+		//创建用户
 		err := s.repo.saveUser(ctx, tx, &user)
 		if err != nil {
 			logs.Errorf("register saveUser error: %v", err)
 			return err
 		}
-		// 发送邮件
+		//发送邮件
 		err = s.sendVerifyEmail(user.Email, user.Username, token)
 		if err != nil {
 			logs.Errorf("register sendVerifyEmail error: %v", err)
@@ -104,7 +104,7 @@ func (s *service) register(req RegisterReq) (*RegisterResp, error) {
 }
 
 func (s *service) sendVerifyEmail(email string, username string, token string) error {
-	// 加载邮件的配置
+	//加载邮件的配置
 	emailConfig := config.GetConfig().Email
 	addr := fmt.Sprintf("%s:%d", emailConfig.GetHost(), emailConfig.GetPort())
 	auth := smtp.PlainAuth("", emailConfig.GetUsername(), emailConfig.GetPassword(), emailConfig.GetHost())
@@ -123,22 +123,22 @@ func (s *service) sendVerifyEmail(email string, username string, token string) e
 func (s *service) verifyEmail(token string) (any, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	// 先从redis获取userId
+	//先从redis获取userId
 	tokenKey := fmt.Sprintf("verify_token:%s", token)
 	userIdStr, err := s.cache.Get(tokenKey)
 	if err != nil {
 		logs.Errorf("verifyEmail Get error: %v", err)
 		return nil, biz.ErrTokenInvalid
 	}
-	// 这个验证邮件的时候 redis的key也需要删除
+	//这个验证邮件的时候 redis的key也需要删除
 	defer s.cache.Set(tokenKey, "", 1)
-	// 转换成uuid
+	//转换成uuid
 	userId, err := uuid.Parse(userIdStr)
 	if err != nil {
 		logs.Errorf("verifyEmail Parse error: %v", err)
 		return nil, biz.ErrTokenInvalid
 	}
-	// 根据用户id查找 用户
+	//根据用户id查找 用户
 	u, err := s.repo.findById(ctx, userId)
 	if err != nil {
 		logs.Errorf("verifyEmail findById error: %v", err)
@@ -147,12 +147,12 @@ func (s *service) verifyEmail(token string) (any, error) {
 	if u == nil {
 		return nil, biz.ErrUserNotFound
 	}
-	// 判断用户邮箱是否已经验证
+	//判断用户邮箱是否已经验证
 	if u.EmailVerified {
 		//直接返回验证成功
 		return nil, nil
 	}
-	// 更新 用户
+	//更新 用户
 	u.EmailVerified = true
 	u.Status = model.UserStatusNormal
 	err = s.repo.transaction(ctx, func(tx *gorm.DB) error {
@@ -168,7 +168,7 @@ func (s *service) verifyEmail(token string) (any, error) {
 func (s *service) login(req LoginReq) (*LoginResp, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	// 根据用户名或邮箱查询用户
+	//根据用户名或邮箱查询用户
 	u, err := s.repo.findByUsernameOrEmail(ctx, req.Username)
 	if err != nil {
 		logs.Errorf("login findByUsernameOrEmail error: %v", err)
@@ -180,7 +180,7 @@ func (s *service) login(req LoginReq) (*LoginResp, error) {
 	if !u.EmailVerified {
 		return nil, biz.ErrEmailNotVerified
 	}
-	// 比对密码
+	//比对密码
 	err = bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(req.Password))
 	if err != nil {
 		return nil, biz.ErrPasswordInvalid
@@ -189,7 +189,7 @@ func (s *service) login(req LoginReq) (*LoginResp, error) {
 }
 
 func (s *service) token(u *model.User) (*LoginResp, error) {
-	// 生成 token 和 refreshToken
+	//生成token和refreshToken
 	expire := config.GetConfig().Jwt.GetExpire()
 	refreshExpire := config.GetConfig().Jwt.GetRefresh()
 	token, err := jwt.GenToken(u.Id.String(), u.Username, expire)
@@ -220,7 +220,7 @@ func (s *service) token(u *model.User) (*LoginResp, error) {
 func (s *service) refreshToken(refreshToken string) (*LoginResp, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	// 解析 refreshToken
+	//解析refreshToken
 	claims, err := jwt.ParseToken(refreshToken)
 	if err != nil {
 		return nil, biz.ErrTokenInvalid
@@ -230,18 +230,18 @@ func (s *service) refreshToken(refreshToken string) (*LoginResp, error) {
 	if err != nil {
 		return nil, biz.ErrTokenInvalid
 	}
-	// 根据用户 id 查询用户
+	//根据用户id查询用户
 	u, err := s.repo.findById(ctx, userId)
 	if err != nil {
 		logs.Errorf("refreshToken findById error: %v", err)
 		return nil, errs.DBError
 	}
-	// 重新生成 token 和 refreshToken
+	//重新生成token和refreshToken
 	return s.token(u)
 }
 
 func (s *service) forgotPassword(forgetReq ForgetPasswordReq) (any, error) {
-	// 先检查邮件是否存在
+	//先检查邮件是否存在
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	u, err := s.repo.findByEmail(ctx, forgetReq.Email)
@@ -252,20 +252,20 @@ func (s *service) forgotPassword(forgetReq ForgetPasswordReq) (any, error) {
 	if u == nil {
 		return nil, biz.ErrUserNotFound
 	}
-	// 生成验证码
+	//生成验证码
 	code, err := randoms.Gen6Code()
 	if err != nil {
 		logs.Errorf("forgetPassword Gen6Code error: %v", err)
 		return nil, biz.ErrCodeGen
 	}
-	// 保存验证码到 redis
+	//保存验证码到redis
 	codeKey := fmt.Sprintf("forget_password_code:%s", u.Email)
 	err = s.cache.Set(codeKey, code, 5*60)
 	if err != nil {
 		logs.Errorf("forgetPassword Set error: %v", err)
 		return nil, errs.DBError
 	}
-	// 发送邮件
+	//发送邮件
 	err = s.sendForgetPasswordEmail(u.Email, u.Username, code)
 	if err != nil {
 		logs.Errorf("forgetPassword sendForgetPasswordEmail error: %v", err)
@@ -277,7 +277,7 @@ func (s *service) forgotPassword(forgetReq ForgetPasswordReq) (any, error) {
 }
 
 func (s *service) sendForgetPasswordEmail(email string, username string, code string) error {
-	// 加载邮件的配置
+	//加载邮件的配置
 	emailConfig := config.GetConfig().Email
 	addr := fmt.Sprintf("%s:%d", emailConfig.GetHost(), emailConfig.GetPort())
 	auth := smtp.PlainAuth("", emailConfig.GetUsername(), emailConfig.GetPassword(), emailConfig.GetHost())
@@ -293,24 +293,24 @@ func (s *service) sendForgetPasswordEmail(email string, username string, code st
 }
 
 func (s *service) verifyCode(req VerifyCodeReq) (*VerifyCodeResp, error) {
-	// 先从 redis 获取验证码
+	//先从redis获取验证码
 	codeKey := fmt.Sprintf("forget_password_code:%s", req.Email)
 	code, err := s.cache.Get(codeKey)
 	if err != nil {
 		logs.Errorf("verifyCode Get error: %v", err)
 		return nil, biz.ErrCodeInvalid
 	}
-	// 检查验证码是否正确
+	//检查验证码是否正确
 	if code != req.Code {
 		return nil, biz.ErrCodeInvalid
 	}
-	// 生成一个用于重置密码的临时令牌
+	//生成一个用于重置密码的临时令牌
 	token, err := s.generateResetPasswordToken(req.Email)
 	if err != nil {
 		logs.Errorf("verifyCode generrateResetPasswordToken error: %v", err)
 		return nil, biz.ErrTokenGen
 	}
-	// 删除redis中的验证码 设置1秒过期
+	//删除redis中的验证码 设置1秒过期
 	defer s.cache.Set(codeKey, "", 1)
 	return &VerifyCodeResp{
 		Message: "验证成功",
@@ -324,9 +324,9 @@ func (s *service) generateResetPasswordToken(email string) (string, error) {
 		return "", errs.DBError
 	}
 	token := hex.EncodeToString(tokenBytes)
-	// 放入 redis 中
+	//放入redis中
 	key := fmt.Sprintf("reset_password_token:%s", token)
-	// 1小时 这个重置密码后需要及时删除 或者设置的短一些 15分钟
+	//1小时 这个重置密码后需要及时删除 或者设置的短一些 15分钟
 	err := s.cache.Set(key, email, 15*60)
 	if err != nil {
 		logs.Errorf("generateResetPasswordToken Set error: %v", err)
@@ -336,7 +336,7 @@ func (s *service) generateResetPasswordToken(email string) (string, error) {
 }
 
 func (s *service) resetPassword(c context.Context, resetReq ResetPasswordReq) (any, error) {
-	// 验证重置密码的令牌
+	//验证重置密码的令牌
 	tokenKey := fmt.Sprintf("reset_password_token:%s", resetReq.Token)
 	email, err := s.cache.Get(tokenKey)
 	if err != nil {
@@ -345,11 +345,11 @@ func (s *service) resetPassword(c context.Context, resetReq ResetPasswordReq) (a
 	defer s.cache.Set(tokenKey, "", 1)
 	ctx, cancel := context.WithTimeout(c, time.Second*5)
 	defer cancel()
-	// 检查邮箱是否匹配
+	//检查邮箱是否匹配
 	if email != resetReq.Email {
 		return nil, biz.ErrEmailNotMatch
 	}
-	// 根据邮箱查询用户
+	//根据邮箱查询用户
 	u, err := s.repo.findByEmail(ctx, resetReq.Email)
 	if err != nil {
 		logs.Errorf("resetPassword findByEmail error: %v", err)
@@ -358,13 +358,13 @@ func (s *service) resetPassword(c context.Context, resetReq ResetPasswordReq) (a
 	if u == nil {
 		return nil, biz.ErrUserNotFound
 	}
-	// 新的密码加密
+	//新的密码加密
 	newPassword, err := bcrypt.GenerateFromPassword([]byte(resetReq.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
 		logs.Errorf("resetPassword GenerateFromPassword error: %v", err)
 		return nil, biz.ErrPasswordFormat
 	}
-	// 更新密码
+	//更新密码
 	u.Password = string(newPassword)
 	err = s.repo.transaction(ctx, func(tx *gorm.DB) error {
 		return s.repo.updateUser(ctx, tx, u)

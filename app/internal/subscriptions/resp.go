@@ -1,7 +1,7 @@
 package subscriptions
 
 import (
-	"Faber-AI/model"
+	"model"
 
 	"github.com/google/uuid"
 )

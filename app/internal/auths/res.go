@@ -1,8 +1,6 @@
 package auths
 
-import (
-	"Faber-AI/model"
-)
+import "model"
 
 type RegisterResp struct {
 	Message string `json:"message"`
